@@ -9,14 +9,24 @@ Production-ready starter template for building AI agents with **FastAPI** (API l
 
 ## 🚀 Features
 
+### Core Features
 - **FastAPI Backend**: High-performance async API with automatic OpenAPI docs
 - **LangGraph Agent**: Stateful ReAct-pattern agent with tool calling
 - **MCP Tools**: Standardized tool protocol with TODO, calculator, and weather
 - **OpenRouter Integration**: Easy LLM provider switching (GPT-4o default)
 - **Streaming Responses**: Real-time SSE streaming of agent thoughts and actions
-- **LangSmith Observability**: Optional tracing and debugging (Phase II)
+
+### Phase III: Production Features ✨
+- **PostgreSQL Database**: Persistent storage with SQLModel ORM
+- **Conversation Memory**: LangGraph checkpointing for multi-turn conversations
+- **API Key Authentication**: Secure your endpoints (optional)
+- **Rate Limiting**: Prevent API abuse (100 req/min default)
+- **LangSmith Tracing**: Full observability for agent workflows
 - **Structured Logging**: JSON logs for production monitoring
+
+### Additional Features
 - **Docker Ready**: One-command setup with Docker Compose
+- **Database Migrations**: Alembic for schema versioning
 - **Fully Tested**: Comprehensive unit tests with pytest
 - **Type Safe**: Full type hints with Pydantic validation
 
@@ -24,16 +34,17 @@ Production-ready starter template for building AI agents with **FastAPI** (API l
 
 ### API Endpoints
 - `GET /health` - Health check
-- `POST /chat` - Chat with AI agent
-- `GET /chat/stream` - Stream agent responses via SSE (Phase II)
+- `POST /chat` - Chat with AI agent (supports session memory)
+- `GET /chat/stream` - Stream agent responses via SSE
 
 ### MCP Tools
 - **TODO Management**: Add, list, complete, delete tasks
 - **Calculator**: Safe mathematical expression evaluation
-- **Weather**: Get current weather for any city (Phase II)
+- **Weather**: Get current weather for any city
 
 ### Agent Capabilities
 The LangGraph agent can:
+- Remember conversations across requests (session-based memory)
 - Manage your TODO list via natural language
 - Perform calculations
 - Get weather information for cities worldwide
@@ -43,7 +54,8 @@ The LangGraph agent can:
 
 ### Prerequisites
 - Python 3.11+
-- Docker & Docker Compose (optional but recommended)
+- Docker & Docker Compose (recommended)
+- PostgreSQL (included in Docker Compose)
 
 ### 1. Clone and Setup
 
@@ -55,18 +67,41 @@ cp .env.example .env
 
 ### 2. Configure Environment
 
-Edit `.env` and add your OpenRouter API key:
+Edit `.env` and add your API keys:
 
 ```env
-OPENROUTER_API_KEY=your_api_key_here
+# Required
+OPENROUTER_API_KEY=your_openrouter_key_here
+
+# Database (default works with Docker Compose)
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/mcp-agent
+
+# Optional: Weather API
+WEATHER_API_KEY=your_openweather_key_here
+
+# Optional: LangSmith Tracing
+LANGSMITH_API_KEY=your_langsmith_key_here
+LANGSMITH_PROJECT=my-project
+LANGSMITH_ENABLED=true
+
+# Optional: Authentication
+AUTH_ENABLED=false
+API_KEYS=key1,key2,key3
 ```
 
-Get your API key from [OpenRouter](https://openrouter.ai/).
+**Get API Keys:**
+- OpenRouter: https://openrouter.ai/
+- OpenWeather: https://openweathermap.org/api
+- LangSmith: https://smith.langchain.com/
 
 ### 3. Run with Docker (Recommended)
 
 ```bash
+# Start PostgreSQL and API
 docker-compose up
+
+# In another terminal, run migrations
+docker-compose exec api alembic upgrade head
 ```
 
 The API will be available at `http://localhost:8000`.
@@ -74,6 +109,9 @@ The API will be available at `http://localhost:8000`.
 ### 4. Run Locally (Alternative)
 
 ```bash
+# Start PostgreSQL (if not using Docker)
+# Make sure PostgreSQL is running on localhost:5432
+
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -81,11 +119,14 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -e .
 
+# Run migrations
+alembic upgrade head
+
 # Run the application
 python -m app.main
 ```
 
-## 🧪 Testing
+## 🧪 Usage Examples
 
 ### Health Check
 
@@ -93,202 +134,263 @@ python -m app.main
 curl http://localhost:8000/health
 ```
 
-### Chat with Agent
+### Chat with Agent (Basic)
 
-**Add a TODO:**
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Add a todo: Buy groceries"}'
+  -d '{
+    "message": "Add a TODO: Buy groceries"
+  }'
 ```
 
-**List TODOs:**
+### Chat with Conversation Memory
+
+```bash
+# First message
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hi, my name is Alice",
+    "session_id": "user-123"
+  }'
+
+# Follow-up message - agent remembers!
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What is my name?",
+    "session_id": "user-123"
+  }'
+```
+
+### Stream Agent Response
+
+```bash
+curl -N "http://localhost:8000/chat/stream?message=Calculate%2025%20*%204&session_id=calc-session"
+```
+
+### With Authentication (if enabled)
+
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Show me all my todos"}'
-```
-
-**Calculate:**
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Calculate 25 * 4 + 10"}'
-```
-
-**Complex Task:**
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Add 3 todos: buy milk, call mom, finish report. Then calculate 100 / 5"}'
-```
-
-## 🧪 Run Tests
-
-```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run with coverage
-pytest --cov=app --cov-report=html
-```
-
-## 📚 API Documentation
-
-Once running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-## 🏗️ Project Structure
-
-```
-fastapi-langgraph-mcp-starter/
-├── app/
-│   ├── main.py              # FastAPI application
-│   ├── config.py            # Configuration management
-│   ├── api/
-│   │   ├── routes.py        # API endpoints
-│   │   └── schemas.py       # Request/Response models
-│   ├── core/
-│   │   └── llm_factory.py   # LLM provider abstraction
-│   ├── agent/
-│   │   ├── state.py         # Agent state schema
-│   │   ├── nodes.py         # Graph node functions
-│   │   └── graph.py         # LangGraph workflow
-│   └── mcp/
-│       ├── server.py        # MCP server
-│       └── tools/
-│           ├── todo.py      # TODO tool
-│           └── calculator.py # Calculator tool
-├── tests/                   # Unit tests
-├── .env.example             # Environment template
-├── Dockerfile               # Docker configuration
-├── docker-compose.yml       # Docker Compose setup
-└── pyproject.toml           # Dependencies
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "message": "List my TODOs"
+  }'
 ```
 
 ## 🔧 Configuration
 
-All configuration is managed via environment variables in `.env`:
+### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API key | Required |
-| `MODEL_NAME` | LLM model identifier | `openai/gpt-4o` |
-| `MODEL_TEMPERATURE` | Sampling temperature | `0.7` |
-| `MODEL_MAX_TOKENS` | Max response tokens | `2000` |
-| `API_PORT` | API server port | `8000` |
-| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000,http://localhost:8000` |
-| `WEATHER_API_KEY` | OpenWeatherMap API key (optional) | `` |
-| `LANGSMITH_API_KEY` | LangSmith API key (optional) | `` |
-| `LANGSMITH_ENABLED` | Enable LangSmith tracing | `false` |
-| `LOG_LEVEL` | Logging level | `INFO` |
-| `JSON_LOGS` | Use JSON log format | `false` |
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `OPENROUTER_API_KEY` | OpenRouter API key | Yes | - |
+| `DATABASE_URL` | PostgreSQL connection string | Yes | `postgresql+asyncpg://...` |
+| `MODEL_NAME` | LLM model to use | No | `openai/gpt-4o` |
+| `MODEL_TEMPERATURE` | LLM temperature | No | `0.7` |
+| `MODEL_MAX_TOKENS` | Max tokens in response | No | `2000` |
+| `API_HOST` | API server host | No | `0.0.0.0` |
+| `API_PORT` | API server port | No | `8000` |
+| `AUTH_ENABLED` | Enable API key auth | No | `false` |
+| `API_KEYS` | Comma-separated API keys | No | `` |
+| `RATE_LIMIT_PER_MINUTE` | Rate limit per key/IP | No | `100` |
+| `WEATHER_API_KEY` | OpenWeather API key | No | `` |
+| `LANGSMITH_API_KEY` | LangSmith API key | No | `` |
+| `LANGSMITH_PROJECT` | LangSmith project name | No | `fastapi-langgraph-mcp-starter` |
+| `LANGSMITH_ENABLED` | Enable LangSmith tracing | No | `false` |
+| `LOG_LEVEL` | Logging level | No | `INFO` |
+| `JSON_LOGS` | Use JSON log format | No | `false` |
 
-## 🎯 Customization
+### Database Setup
 
-### Add a New Tool
+The application uses PostgreSQL for:
+- **Conversation Memory**: LangGraph checkpointing stores conversation state
+- **Future**: Persistent TODO storage (currently in-memory for agent)
 
-1. Create tool function in `app/mcp/tools/`:
+**Migrations:**
+```bash
+# Create a new migration
+alembic revision --autogenerate -m "Description"
 
-```python
-# app/mcp/tools/weather.py
-def get_weather(city: str) -> dict:
-    """Get weather for a city."""
-    # Your implementation
-    return {"city": city, "temp": 72}
+# Apply migrations
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
 ```
 
-2. Register in MCP server (`app/mcp/server.py`):
+### Authentication
 
-```python
-from app.mcp.tools import weather
-
-@mcp.tool()
-def get_weather(city: str) -> dict:
-    """Get current weather for a city."""
-    return weather.get_weather(city)
-```
-
-3. Add to agent tools (`app/agent/nodes.py`):
-
-```python
-@tool
-def get_weather_tool(city: str) -> dict:
-    """Get current weather for a city."""
-    return weather.get_weather(city)
-
-# Add to tools list
-tools = [..., get_weather_tool]
-```
-
-### Change LLM Provider
-
-Edit `.env`:
+Enable API key authentication:
 
 ```env
-MODEL_NAME=anthropic/claude-3.5-sonnet
+AUTH_ENABLED=true
+API_KEYS=secret-key-1,secret-key-2,another-key
 ```
 
-OpenRouter supports 100+ models. See [OpenRouter Models](https://openrouter.ai/models).
+Then include the key in requests:
+```bash
+curl -H "X-API-Key: secret-key-1" ...
+```
 
-## 🗺️ Roadmap
+### Rate Limiting
 
-### Phase I ✅
-- Core FastAPI + LangGraph + MCP integration
-- TODO and calculator tools
-- Docker setup
-- Unit tests
+Configured per API key (or IP if no key provided):
 
-### Phase II (Current) ✅
-- Streaming responses (SSE)
-- Weather tool integration
-- LangSmith observability
-- Structured logging
+```env
+RATE_LIMIT_PER_MINUTE=100
+```
 
-### Phase III (Planned)
-- PostgreSQL persistence
-- Conversation memory
-- OAuth 2.0 authentication
-- Multi-MCP server support
-- Rate limiting
+Returns `429 Too Many Requests` when limit exceeded.
 
-### Phase IV (Future)
-- Multi-agent workflows
-- RAG integration
-- Web UI
-- Advanced monitoring
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test file
+pytest tests/test_api.py
+```
+
+### Interactive API Documentation
+
+Visit `http://localhost:8000/docs` for Swagger UI with interactive API testing.
+
+## 📁 Project Structure
+
+```
+fastapi-langgraph-mcp-starter/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # FastAPI application entry point
+│   ├── config.py               # Configuration management
+│   ├── api/
+│   │   ├── routes.py           # API endpoints
+│   │   ├── schemas.py          # Pydantic models
+│   │   └── streaming.py        # SSE streaming utilities
+│   ├── agent/
+│   │   ├── state.py            # Agent state definition
+│   │   ├── nodes.py            # Agent node functions
+│   │   ├── graph.py            # LangGraph workflow
+│   │   └── checkpointer.py     # Conversation memory
+│   ├── core/
+│   │   ├── llm_factory.py      # LLM initialization
+│   │   ├── logging.py          # Structured logging
+│   │   ├── tracing.py          # LangSmith integration
+│   │   ├── auth.py             # API key authentication
+│   │   └── rate_limit.py       # Rate limiting
+│   ├── db/
+│   │   ├── models.py           # Database models
+│   │   └── session.py          # Database session management
+│   └── mcp/
+│       ├── server.py           # MCP server definition
+│       └── tools/
+│           ├── todo.py         # TODO tool (database-backed)
+│           ├── todo_simple.py  # TODO tool (in-memory for agent)
+│           ├── calculator.py   # Calculator tool
+│           └── weather.py      # Weather tool
+├── tests/
+│   ├── conftest.py             # Test fixtures
+│   ├── test_api.py             # API endpoint tests
+│   ├── test_agent.py           # Agent workflow tests
+│   └── test_mcp.py             # MCP tool tests
+├── alembic/                    # Database migrations
+├── .env.example                # Environment template
+├── docker-compose.yml          # Docker services
+├── Dockerfile                  # Container definition
+├── pyproject.toml              # Project dependencies
+└── README.md                   # This file
+```
+
+## 🔍 How It Works
+
+### Request Flow
+
+1. **Client** sends request to FastAPI endpoint
+2. **Authentication** validates API key (if enabled)
+3. **Rate Limiter** checks request quota
+4. **Agent** processes request using LangGraph workflow:
+   - LLM decides what to do
+   - Calls MCP tools if needed
+   - Returns final response
+5. **Checkpointer** saves conversation state to PostgreSQL
+6. **Response** sent back to client
+
+### Agent Workflow (ReAct Pattern)
+
+```
+User Input → LLM Decision → Tool Call? → Execute Tool → LLM Decision → ... → Final Answer
+                ↑                                          ↓
+                └──────────── Tool Results ────────────────┘
+```
+
+### Conversation Memory
+
+Each session has a unique `session_id`. The checkpointer:
+- Stores all messages and tool calls in PostgreSQL
+- Retrieves conversation history on subsequent requests
+- Enables multi-turn conversations with context
+
+## 🚀 Deployment
+
+### Docker Production Build
+
+```bash
+# Build production image
+docker build -t fastapi-langgraph-mcp:latest .
+
+# Run with external PostgreSQL
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/db \
+  -e OPENROUTER_API_KEY=your_key \
+  fastapi-langgraph-mcp:latest
+```
+
+### Environment Best Practices
+
+- Use environment-specific `.env` files
+- Never commit `.env` to version control
+- Use secrets management in production (AWS Secrets Manager, etc.)
+- Enable `JSON_LOGS=true` for production logging
+- Set `API_RELOAD=false` in production
+
+## 📚 Learn More
+
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [FastMCP Documentation](https://github.com/jlowin/fastmcp)
+- [OpenRouter API](https://openrouter.ai/docs)
+- [LangSmith Tracing](https://docs.smith.langchain.com/)
 
 ## 🤝 Contributing
 
 Contributions welcome! Please:
-
 1. Fork the repository
 2. Create a feature branch
-3. Add tests for new functionality
+3. Add tests for new features
 4. Submit a pull request
 
-## 📄 License
+## 📝 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
 Built with:
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [LangGraph](https://langchain-ai.github.io/langgraph/) - Agent orchestration
-- [FastMCP](https://github.com/jlowin/fastmcp) - Model Context Protocol
-- [OpenRouter](https://openrouter.ai/) - Unified LLM API
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/fastapi-langgraph-mcp-starter/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/fastapi-langgraph-mcp-starter/discussions)
+- [FastAPI](https://fastapi.tiangolo.com/) by Sebastián Ramírez
+- [LangGraph](https://github.com/langchain-ai/langgraph) by LangChain
+- [FastMCP](https://github.com/jlowin/fastmcp) by Marvin Team
+- [OpenRouter](https://openrouter.ai/) for LLM access
 
 ---
 
-**Star ⭐ this repo if you find it useful!**
-"# LangGrapgh-MCP-" 
+**Ready to build your AI agent?** Start with this template and customize it for your needs! 🚀
