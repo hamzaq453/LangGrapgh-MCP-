@@ -1,19 +1,25 @@
 """LangGraph checkpointer using PostgreSQL.
 
 Provides conversation memory across requests using database persistence.
+
+NOTE: Checkpointing is currently disabled due to connection management complexity.
+This will be properly implemented in a future update.
 """
 
-from langgraph.checkpoint.postgres import PostgresSaver
+from typing import Optional
 
-from app.config import settings
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 
-def create_checkpointer() -> PostgresSaver:
+async def get_checkpointer() -> Optional[BaseCheckpointSaver]:
     """
-    Create PostgreSQL checkpointer for LangGraph.
+    Get PostgreSQL checkpointer for LangGraph.
+    
+    Currently returns None (checkpointing disabled).
     
     Returns:
-        PostgresSaver instance configured with database URL
+        None (checkpointing disabled for now)
     """
-    # PostgresSaver will create necessary tables automatically
-    return PostgresSaver.from_conn_string(settings.database_url)
+    # TODO: Implement proper async checkpointer with connection pooling
+    # For now, return None to disable checkpointing
+    return None
