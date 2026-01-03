@@ -4,38 +4,30 @@ Provides observability for LangGraph agent workflows.
 """
 
 import os
-from typing import Optional
 
 
-def setup_langsmith(
-    api_key: Optional[str] = None,
-    project: Optional[str] = None,
-    enabled: bool = True,
-) -> None:
+def setup_langsmith() -> None:
     """
-    Configure LangSmith tracing.
+    Setup LangSmith tracing for LangGraph workflows.
     
-    Args:
-        api_key: LangSmith API key (optional, can use env var)
-        project: LangSmith project name (optional, defaults to "default")
-        enabled: Whether to enable tracing
+    LangSmith provides observability for your agent's execution.
+    Get your API key at: https://smith.langchain.com/
+    
+    Reads configuration from app.config.settings
     """
-    if not enabled:
-        os.environ["LANGCHAIN_TRACING_V2"] = "false"
-        return
+    from app.config import settings
     
-    # Enable tracing
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    
-    # Set API key if provided
-    if api_key:
-        os.environ["LANGCHAIN_API_KEY"] = api_key
-    
-    # Set project if provided
-    if project:
-        os.environ["LANGCHAIN_PROJECT"] = project
+    if settings.langsmith_enabled and settings.langsmith_api_key:
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
+        os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+        print(f"✓ LangSmith tracing enabled (project: {settings.langsmith_project})")
     else:
-        os.environ["LANGCHAIN_PROJECT"] = "fastapi-langgraph-mcp-starter"
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        if not settings.langsmith_enabled:
+            print("✓ LangSmith tracing disabled (LANGSMITH_ENABLED=false)")
+        elif not settings.langsmith_api_key:
+            print("✓ LangSmith tracing disabled (no API key)")
 
 
 def is_langsmith_enabled() -> bool:

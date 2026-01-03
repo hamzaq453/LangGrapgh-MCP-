@@ -25,14 +25,17 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     setup_logging()
-    setup_langsmith()
+    setup_langsmith()  # Now reads from settings directly
     
     # Create database tables if they don't exist
     await create_db_and_tables()
     
     # Initialize PostgreSQL checkpointer for conversation memory
+    # Convert asyncpg URL to psycopg format (remove +asyncpg)
+    checkpointer_url = settings.database_url.replace('+asyncpg', '')
+    
     # Use async context manager to manage connection lifecycle
-    async with AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+    async with AsyncPostgresSaver.from_conn_string(checkpointer_url) as checkpointer:
         # Setup checkpoint tables
         await checkpointer.setup()
         
@@ -40,7 +43,7 @@ async def lifespan(app: FastAPI):
         app.state.checkpointer = checkpointer
         
         print(f"✓ Checkpointer initialized with PostgreSQL")
-        print(f"✓ Database: {settings.database_url.split('@')[1] if '@' in settings.database_url else 'configured'}")
+        print(f"✓ Database: {checkpointer_url.split('@')[1] if '@' in checkpointer_url else 'configured'}")
         
         yield
         
